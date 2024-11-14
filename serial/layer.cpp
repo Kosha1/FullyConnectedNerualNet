@@ -53,8 +53,11 @@ T* Layer<T>::forward(T* input, int size){
 }
 
 template <typename T>
-T* Layer<T>::calcLayerError(T* prevError, T* prevWeights, int prevNumInputs, int prevNumOutputs){
-    //prevError must be of size prevNumOutputs
+T* Layer<T>::calcLayerError(T* prevError, T* prevWeights, int prevNumInputs, int prevNumOutputs){//all hidden layers
+    //prevError must be of size prevNumOutputs, prevNumInputs must equal to this.num_ouputs
+    if (prevNumInputs != num_outputs){
+        throw std::runtime_error("Backpropagation Layer Dimension errors");
+    }
 
     // dL/dlayer = dh/df * dfprev/dh * dL/dprevLayer
     // dh/df is derivate of activation output with respect to preactivation output (ReLu in our case)
@@ -64,9 +67,25 @@ T* Layer<T>::calcLayerError(T* prevError, T* prevWeights, int prevNumInputs, int
         else activationDer[i] = 1.0;
     }
 
-    // dfprev/dh = prevWeight transposed
-
+    // dfprev/dh = prevWeight transposed (prevWeights is a prevNumOutputs x prevNumInputs matrix)
+    //store prevWeights transposed * prevError in layerError, then pointwise multiply it with activationDer
     T* layerError = new T[num_outputs];
+    for (int i = 0; i < prevNumInputs; ++i){
+        T sum = 0.0;
+        for(int j = 0; j < prevNumOutputs; ++j){
+            //row j column i in prevWeights matrix
+            sum += prevWeights[j * prevNumInputs + i] * prevError[j];
+        }
+        layerError[i] = sum;
+    }
+    //pointwise mult layerError with activation Der
+    for(int i = 0; i < num_outputs; ++i){
+        layerError[i] = layerError[i] * activationDer[i];
+    }
+    delete[] activationDer;
+
+    printVector(layerError, num_outputs);
+    return layerError;
 }
 
 template <typename T>
@@ -77,6 +96,9 @@ T* Layer<T>::calcLayerError(int label){//last layer error based on cross entropy
         layerError[i] = output[i];
     }
     layerError[label] = layerError[label] - 1.0;//subtraction of one hot vector from softmax
+
+    printVector(layerError, num_outputs);
+
     return layerError;
 }
 

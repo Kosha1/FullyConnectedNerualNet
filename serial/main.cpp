@@ -28,7 +28,8 @@ int main(){
 
     //Model<double> model = Model<double>(relu, softmax);
     Model<float> model = Model<float>(relu, softmax);
-    model.forward(arr, arrsize);
+    //model.forward(arr, arrsize);
+    model.backpropagate(arr, arrsize, 3);
 
     delete[] arr;
 

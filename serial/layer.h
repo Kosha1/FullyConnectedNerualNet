@@ -18,6 +18,9 @@ public:
     int getNumInputs(){return num_inputs;}
     int getNumOutputs(){return num_outputs;}
 
+    T* getOutputVec(){return output;}
+    T* getWeights(){return weights;}
+
     //prev refers to the layer after this, previous in backpropagation algorithm
     T* calcLayerError(T* prevError, T* prevWeights, int prevNumInputs, int prevNumOutputs);
     T* calcLayerError(int label);//only for last layer use

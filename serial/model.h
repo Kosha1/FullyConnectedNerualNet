@@ -22,14 +22,20 @@ public:
 
     void train(T** trainImages, int imageLength, int count, int* labels, params p);
 
+    //calculate derivatives of all layers for one input vector and corresponding label
+    void backpropagate(T* image, int imageLength, int label);
+
 private:
     int num_inputs;//input vector dimension to model
     int num_outputs;//final output vector dimension of model
     std::vector<Layer<T>> layers;
 
     //calculate derivatives of all layers for one input vector and corresponding label
-    void backpropagate(T* image, int imageLength, int label);
+    //void backpropagate(T* image, int imageLength, int label);
 
+    //functions to add one images gradient to shared gradients fields below
+    void singleBiasGradUpdate(int depth, T* layerError, int biasLength);
+    void singleWeightsGradUpdate(int depth, T* layerError, T* layerInput, int layerLength, int inputLength);
 
     //Each layer in the model needs a gradient vector for biases and a gradient matrix for weights
     //Every example in a batch will calculate its own gradients and then add them to this shared term
@@ -37,6 +43,9 @@ private:
     //different batches will be processed sequentially, even in the parallelized version
     T** weightsGrad;
     T** biasesGrad;
+
+    //before each batch, reset all gradients to 0.0
+    void zeroGrad();
 };
 
 #endif

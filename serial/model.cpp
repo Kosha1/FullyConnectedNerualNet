@@ -23,6 +23,7 @@ Model<T>::Model(T* (*hiddenAct)(T*, T*, int), T* (*outputAct)(T*, T*, int)){
         weightsGrad[i] = new T[layers[i].getNumInputs() * layers[i].getNumOutputs()];
         biasesGrad[i] = new T[layers[i].getNumOutputs()];
     }
+    zeroGrad();
 }
 
 template <typename T>
@@ -67,14 +68,76 @@ template <typename T>
 void Model<T>::backpropagate(T* image, int imageLength, int label){
     //forward pass, each layer class will store intermediate preactivations and activations
     forward(image, imageLength);
-    
-    //calculate weight and bias gradient for last layer outside of for loop
-    // dL/dlastlayer = softmax output - One hot encoding vector
-    T* layerError = new T[layers[layers.size() - 1].numOutputs()];
-    
 
-    for (int i = layers.size() - 1; i >= 0; --i){
+    std::cout<<"-----Backpropagation Layer Errors-----"<<std::endl;
+    
+    //Bias Gradient = LayerError
+    //Weights Gradient = LayerError (num_outputs x 1 matrix) * input vector transposed (1 x num_inputs matrix)
 
+    //calculate weight and bias gradients for last layer outside of for loop
+    int lastDepth = layers.size() - 1;
+    T* prevLayerError = layers[lastDepth].calcLayerError(label);
+    singleBiasGradUpdate(lastDepth, prevLayerError, layers[lastDepth].getNumOutputs());
+    singleWeightsGradUpdate(lastDepth, prevLayerError, layers[lastDepth - 1].getOutputVec(), layers[lastDepth].getNumOutputs(), layers[lastDepth].getNumInputs());
+    
+    T* LayerError;//for hidden layers, layer error depends on previous error
+    for (int i = layers.size() - 2; i >= 1; --i){
+        LayerError = layers[i].calcLayerError(prevLayerError, layers[i+1].getWeights(), layers[i+1].getNumInputs(), layers[i+1].getNumOutputs());
+        singleBiasGradUpdate(i, LayerError, layers[i].getNumOutputs());
+        singleWeightsGradUpdate(i, LayerError, layers[i-1].getOutputVec(), layers[i].getNumOutputs(), layers[i].getNumInputs());
+        //prevLayerError is no longer needed, delete it and assign Layer Error to prevLayerError
+        delete[] prevLayerError;
+        prevLayerError = LayerError;
+    }
+
+    //Very first hidden layer needs to be outside of for loop (since the image is the input)
+    LayerError = layers[0].calcLayerError(prevLayerError, layers[1].getWeights(), layers[1].getNumInputs(), layers[1].getNumOutputs());
+    singleBiasGradUpdate(0, LayerError, layers[0].getNumOutputs());
+    singleWeightsGradUpdate(0, LayerError, image, layers[0].getNumOutputs(), layers[0].getNumInputs());
+    
+    delete[] prevLayerError;
+    delete[] LayerError;
+}
+
+template <typename T>
+void Model<T>::singleBiasGradUpdate(int depth, T* layerError, int biasLength){
+    //Bias Gradient = LayerError
+    for (int i = 0; i < biasLength; ++i){
+        biasesGrad[depth][i] += layerError[i];
+    }
+}
+
+template <typename T>
+void Model<T>::singleWeightsGradUpdate(int depth, T* layerError, T* layerInput, int layerLength, int inputLength){
+    if (layers[depth].getNumOutputs() != layerLength){
+        throw std::runtime_error("Shared Gradient Update Output Dimension error");
+    }
+    if (layers[depth].getNumInputs() != inputLength){
+        throw std::runtime_error("Shared Gradient Update Input Dimension error");
+    }
+    //Weights Gradient = LayerError (num_outputs x 1 matrix) * input vector transposed (1 x num_inputs matrix)
+    T* singleWeightGrad = new T [layerLength * inputLength];//matrix dimension matches layer's weight matrix dimension
+    for (int i = 0; i < layerLength; ++i){
+        for(int j = 0; j < inputLength; ++j){
+            singleWeightGrad[i * inputLength + j] = layerError[i] * layerInput[j];
+        }
+    }
+    //+= singleWeightGrad array into shared WeightsGrad
+    for (int i = 0; i < layerLength * inputLength; ++i){
+        weightsGrad[depth][i] += singleWeightGrad[i];
+    }
+    delete[] singleWeightGrad;
+}
+
+template <typename T>
+void Model<T>::zeroGrad(){
+    for (int i = 0; i < layers.size(); ++i){
+        for (int j = 0; j < layers[i].getNumInputs() * layers[i].getNumOutputs(); ++j){
+            weightsGrad[i][j] = 0.0;
+        }
+        for (int j = 0; j < layers[i].getNumOutputs(); ++j){
+            biasesGrad[i][j] = 0.0;
+        }
     }
 }
 
