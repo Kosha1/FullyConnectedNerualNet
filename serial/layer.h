@@ -25,6 +25,8 @@ public:
     T* calcLayerError(T* prevError, T* prevWeights, int prevNumInputs, int prevNumOutputs);
     T* calcLayerError(int label);//only for last layer use
 
+    void updateLayerParams(T* weightGrad, T* biasGrad, float learning_rate);
+
 private:
     void initRandParams();//randomly initialize weights and biases, only called in constructor
 

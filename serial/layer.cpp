@@ -103,6 +103,18 @@ T* Layer<T>::calcLayerError(int label){//last layer error based on cross entropy
 }
 
 template <typename T>
+void Layer<T>::updateLayerParams(T* weightGrad, T* biasGrad, float learning_rate){
+    //update weight matrix
+    for(int i = 0; i < num_inputs * num_outputs; ++i){
+        weights[i] -= weightGrad[i] * learning_rate;
+    }
+    //update bias vector
+    for(int i = 0; i < num_outputs; ++i){
+        bias[i] -= biasGrad[i] * learning_rate;
+    }
+}
+
+template <typename T>
 void Layer<T>::initRandParams(){
     T minVal = -2.0;
     T maxVal = 2.0;

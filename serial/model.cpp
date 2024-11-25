@@ -1,4 +1,7 @@
 #include <iostream>
+#include <vector>
+#include <algorithm>
+#include <random>
 #include "model.h"
 #include "layer.h"
 #include "functions.h"
@@ -60,8 +63,33 @@ T* Model<T>::forward(T* input, int size){
 }
 
 template <typename T>
-void Model<T>::train(T** trainImages, int imageLength, int count, int* labels, params p){
+void Model<T>::train(T** trainImages, int imageLength, int count, int* labels, hyperparams p){
+    std::vector<int> indices(count);
+    for (int i = 0; i < count; ++i){//fill vector from 0 to count-1
+        indices[i] = i;
+    }
 
+    int num_batches = (count - 1)/p.batch_size + 1;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    for (int e = 0; e < p.epochs; ++e){//iterate through epochs
+        //shuffle indices vector, each batch will use batchsize indices from the vector
+        std::shuffle(indices.begin(), indices.end(), gen);
+        int global_count = 0;
+        for(int b = 0; b < num_batches; ++b){//iterate through batches
+            for(int i = 0; i < p.batch_size && global_count < count; ++i, ++global_count){//iterate through images in one batch
+                int image_index = indices[global_count];
+                //each image in batch will add its gradients to weightsGrad and biasesGrad arrays
+                backpropagate(trainImages[image_index], imageLength, labels[image_index]);
+            }
+            //Update the model's weights and biases
+            updateModelParams(p.learn_rate);
+            //Zero the shared gradients for the next batch
+            zeroGrad();
+        }
+    }
 }
 
 template <typename T>
@@ -138,6 +166,13 @@ void Model<T>::zeroGrad(){
         for (int j = 0; j < layers[i].getNumOutputs(); ++j){
             biasesGrad[i][j] = 0.0;
         }
+    }
+}
+
+template <typename T>
+void Model<T>::updateModelParams(float learning_rate){
+    for(int l = 0; l < layers.size(); ++l){
+        layers[l].updateLayerParams(weightsGrad[l], biasesGrad[l], learning_rate);
     }
 }
 

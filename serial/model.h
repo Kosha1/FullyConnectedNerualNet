@@ -5,11 +5,11 @@
 #include "layer.h"
 
 
-//Training Parameters struct
-struct params{
+//Training HyperParameters struct
+struct hyperparams{
     int epochs;
     int batch_size;
-    int learn_rate;
+    float learn_rate;
 };
 
 template<typename T>
@@ -20,7 +20,7 @@ public:
 
     T* forward(T* input, int size);
 
-    void train(T** trainImages, int imageLength, int count, int* labels, params p);
+    void train(T** trainImages, int imageLength, int count, int* labels, hyperparams p);
 
     //calculate derivatives of all layers for one input vector and corresponding label
     void backpropagate(T* image, int imageLength, int label);
@@ -46,6 +46,9 @@ private:
 
     //before each batch, reset all gradients to 0.0
     void zeroGrad();
+
+    //update all weight and bias parameters in all layers based on weightsGrad and biasesGrad
+    void updateModelParams(float learning_rate);
 };
 
 #endif

@@ -2,8 +2,8 @@ CC = g++
 
 default: serialnet
 
-serialnet: main.cpp layer.cpp model.cpp
-	${CC} -o $@ main.cpp layer.cpp model.cpp
+serialnet: main.cpp layer.cpp model.cpp loadmnist.cpp
+	${CC} -o $@ main.cpp layer.cpp model.cpp loadmnist.cpp
 
 clean:
 	-rm -f serialnet
