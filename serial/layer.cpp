@@ -1,6 +1,7 @@
 #include <iostream>
 #include "layer.h"
 #include "util.h"
+#include "functions.h"
 
 template <typename T>
 Layer<T>::Layer(int inputs, int outputs, T* (*actfunc)(T*, T*, int)){
@@ -41,13 +42,13 @@ T* Layer<T>::forward(T* input, int size){
     //Preactivation: Ax + b, store in preoutput
     matrixVectorMult(num_outputs, num_inputs, weights, input, preoutput);//Ax-->preoutput
     vectorAddInPlace(preoutput, bias, num_outputs);//preoutput + bias -->preoutput
-    std::cout<<"   Preact: ";
-    printVector(preoutput, num_outputs);
+    //std::cout<<"   Preact: ";
+    //printVector(preoutput, num_outputs);
 
     //apply activation function to preoutput vector, store in output
     activation(preoutput, output, num_outputs);
-    std::cout<<"   Postact: ";
-    printVector(output, num_outputs);
+    //std::cout<<"   Postact: ";
+    //printVector(output, num_outputs);
 
     return output;
 }
@@ -84,7 +85,7 @@ T* Layer<T>::calcLayerError(T* prevError, T* prevWeights, int prevNumInputs, int
     }
     delete[] activationDer;
 
-    printVector(layerError, num_outputs);
+    //printVector(layerError, num_outputs);
     return layerError;
 }
 
@@ -97,9 +98,18 @@ T* Layer<T>::calcLayerError(int label){//last layer error based on cross entropy
     }
     layerError[label] = layerError[label] - 1.0;//subtraction of one hot vector from softmax
 
-    printVector(layerError, num_outputs);
+    //printVector(layerError, num_outputs);
 
     return layerError;
+}
+
+template <typename T>
+float Layer<T>::calcLoss(int label){
+    T* logSoftmax = new T[num_outputs];
+    LogSoftmax(preoutput, logSoftmax, num_outputs);
+    float loss = -1 * logSoftmax[label];
+    delete[] logSoftmax;
+    return loss;
 }
 
 template <typename T>
@@ -116,12 +126,21 @@ void Layer<T>::updateLayerParams(T* weightGrad, T* biasGrad, float learning_rate
 
 template <typename T>
 void Layer<T>::initRandParams(){
-    T minVal = -2.0;
-    T maxVal = 2.0;
+    //T minVal = -2.0;
+    //T maxVal = 2.0;
+    T minVal = -0.01;
+    T maxVal = 0.01;
     //random weights init
-    initRandVector(weights, num_inputs*num_outputs, minVal, maxVal);
+    //initRandVector(weights, num_inputs*num_outputs, minVal, maxVal);
+    HeInitialization(weights, num_inputs*num_outputs, num_inputs);
+    
     //random bias init
-    initRandVector(bias, num_outputs, minVal, maxVal);
+    //initRandVector(bias, num_outputs, minVal, maxVal);
+
+    //Initialize bias vector to 0
+    for (int i = 0; i < num_outputs;++i){
+        bias[i] = 0.0;
+    }
     
 }
 

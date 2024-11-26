@@ -21,9 +21,10 @@ public:
     T* forward(T* input, int size);
 
     void train(T** trainImages, int imageLength, int count, int* labels, hyperparams p);
+    void test(T** testImages, int imageLength, int count, int* labels);
 
     //calculate derivatives of all layers for one input vector and corresponding label
-    void backpropagate(T* image, int imageLength, int label);
+    float backpropagate(T* image, int imageLength, int label);
 
 private:
     int num_inputs;//input vector dimension to model

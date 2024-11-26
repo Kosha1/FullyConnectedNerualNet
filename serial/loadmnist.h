@@ -7,8 +7,8 @@
 
 int reverseInt(int i);
 
-unsigned char** readMnistImages(std::string dir, bool train=false);
+float** readMnistImages(std::string dir, bool train=false);
 
-unsigned char* readMnistLabels(std::string dir, bool train=false);
+int* readMnistLabels(std::string dir, bool train=false);
 
 #endif

@@ -9,16 +9,22 @@
 
 template <typename T>
 Model<T>::Model(T* (*hiddenAct)(T*, T*, int), T* (*outputAct)(T*, T*, int)){
-    num_inputs = 10;;
+    //num_inputs = 10;
+    num_inputs = 784;
     num_outputs = 10;
 
     //Since Layer object have manual memory management and put into vectors, the c++ rule of 3 must be implemented
     //Layer class has explicit copy constructor and assignment operator implemented
     //push_back invokes copy constructor, if one is not explicitly defined then double free or segfaults will occur
+    /*
     layers.push_back(Layer<T>(num_inputs, 10, hiddenAct));
     layers.push_back(Layer<T>(10, 10, hiddenAct));
     //layers.push_back(Layer<T>(10, num_outputs, hiddenAct));
     layers.push_back(Layer<T>(10, num_outputs, outputAct));
+    */
+    layers.push_back(Layer<T>(num_inputs, 512, hiddenAct));
+    layers.push_back(Layer<T>(512, 512, hiddenAct));
+    layers.push_back(Layer<T>(512, num_outputs, outputAct));
 
     weightsGrad = new T*[layers.size()];
     biasesGrad = new T*[layers.size()];
@@ -39,6 +45,7 @@ Model<T>::~Model(){//should abide by Rule of Three ideally
     delete[] biasesGrad;
 }
 
+//forward function returns the softmax output of the model
 template <typename T>
 T* Model<T>::forward(T* input, int size){
     if (size != num_inputs){
@@ -48,17 +55,18 @@ T* Model<T>::forward(T* input, int size){
     T* prevInput = input;
     int inputsize = size;
     for (int i = 0; i < layers.size(); ++i){
-        std::cout<<"Layer "<<i<<" "<<layers[i].getNumOutputs()<<"x"<<layers[i].getNumInputs()<<std::endl;
+        //std::cout<<"Layer "<<i<<" "<<layers[i].getNumOutputs()<<"x"<<layers[i].getNumInputs()<<std::endl;
         prevInput = layers[i].forward(prevInput, inputsize);
         inputsize = layers[i].getNumOutputs();
     }
 
+    /*
     T sum = 0;
     for(int i = 0; i < inputsize; ++i){
         sum += prevInput[i];
     }
     std::cout<<"Sum: "<<sum<<std::endl;
-
+    */
     return prevInput;
 }
 
@@ -75,14 +83,29 @@ void Model<T>::train(T** trainImages, int imageLength, int count, int* labels, h
     std::mt19937 gen(rd());
 
     for (int e = 0; e < p.epochs; ++e){//iterate through epochs
+        //std::cout<<"---Epoch "<<e<<"---"<<std::endl;
         //shuffle indices vector, each batch will use batchsize indices from the vector
         std::shuffle(indices.begin(), indices.end(), gen);
         int global_count = 0;
         for(int b = 0; b < num_batches; ++b){//iterate through batches
+            bool print_loss = false;
+            float batch_loss = 0;
+            if (b % 100 == 0){//print loss statistics every 100th batch
+                print_loss = true;
+                std::cout<<b<<"/"<<num_batches<<" loss: ";
+            }
+
             for(int i = 0; i < p.batch_size && global_count < count; ++i, ++global_count){//iterate through images in one batch
                 int image_index = indices[global_count];
                 //each image in batch will add its gradients to weightsGrad and biasesGrad arrays
-                backpropagate(trainImages[image_index], imageLength, labels[image_index]);
+                float loss = backpropagate(trainImages[image_index], imageLength, labels[image_index]);
+                //if(print_loss) std::cout<<loss<<" ";
+                batch_loss += loss;
+                //batch_loss += backpropagate(trainImages[image_index], imageLength, labels[image_index]);
+            }
+            if (print_loss){
+                //std::cout<<std::endl;
+                std::cout<<batch_loss<<std::endl;
             }
             //Update the model's weights and biases
             updateModelParams(p.learn_rate);
@@ -93,11 +116,16 @@ void Model<T>::train(T** trainImages, int imageLength, int count, int* labels, h
 }
 
 template <typename T>
-void Model<T>::backpropagate(T* image, int imageLength, int label){
+float Model<T>::backpropagate(T* image, int imageLength, int label){
     //forward pass, each layer class will store intermediate preactivations and activations
     forward(image, imageLength);
 
-    std::cout<<"-----Backpropagation Layer Errors-----"<<std::endl;
+    //In order to calculate loss: loss = -ln(softmax(output)_label)
+    //ln(softmax) naively is numerically unstable; ln(0.000001) --> -infinity
+    //ln(softmax) can be calculated in a stable way using the preactivations of the output layer
+    float loss = layers[layers.size() - 1].calcLoss(label);
+
+    //std::cout<<"-----Backpropagation Layer Errors-----"<<std::endl;
     
     //Bias Gradient = LayerError
     //Weights Gradient = LayerError (num_outputs x 1 matrix) * input vector transposed (1 x num_inputs matrix)
@@ -125,6 +153,8 @@ void Model<T>::backpropagate(T* image, int imageLength, int label){
     
     delete[] prevLayerError;
     delete[] LayerError;
+
+    return loss;
 }
 
 template <typename T>
@@ -174,6 +204,34 @@ void Model<T>::updateModelParams(float learning_rate){
     for(int l = 0; l < layers.size(); ++l){
         layers[l].updateLayerParams(weightsGrad[l], biasesGrad[l], learning_rate);
     }
+}
+
+template <typename T>
+void Model<T>::test(T** testImages, int imageLength, int count, int* labels){
+    int correct = 0;
+    for (int i = 0; i < count; ++i){
+        T* outputs = forward(testImages[i], imageLength);
+        //find index of maximum value
+        int max_index = 0;
+        T max_val = outputs[0];
+        T sum = max_val;
+        for (int j = 1; j < num_outputs; ++j){
+            sum += outputs[j];
+            if (outputs[j] > max_val){
+                max_index = j;
+                max_val = outputs[j];
+            }
+        }
+        /*
+        if(sum != 1.0){
+            throw std::runtime_error("Testing: Softmax output sum not equal to 1");
+        }
+        */
+        if (max_index == labels[i]){
+            correct++;
+        }
+    }
+    std::cout<<correct<<"/"<<count<<" correct"<<std::endl;
 }
 
 
