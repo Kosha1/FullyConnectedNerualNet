@@ -58,7 +58,7 @@ int main(){
     //hyperparams p = {10, 32, 0.001};
     //learning rate of 0.01 leads to the loss being nan by the 200th batch
     //Model probabaly diverges. The batch gradient currently is not divided by the batch size (may be why)
-    hyperparams p = {1, 32, 0.001};
+    hyperparams p = {1, 32, 0.01};
 
     //Model<double> model = Model<double>(relu, softmax);
     Model<float> model = Model<float>(relu, softmax);

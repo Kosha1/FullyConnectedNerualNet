@@ -64,7 +64,7 @@ T* Layer<T>::calcLayerError(T* prevError, T* prevWeights, int prevNumInputs, int
     // dh/df is derivate of activation output with respect to preactivation output (ReLu in our case)
     T* activationDer = new T[num_outputs];
     for (int i = 0; i < num_outputs; ++i){//ReLu derivative: 0 if preact < 0, 1 if preact is >= 0
-        if (output[i] < 0) activationDer[i] = 0.0;
+        if (preoutput[i] < 0) activationDer[i] = 0.0;//!!!need preoutput for derivative of activation function!!!
         else activationDer[i] = 1.0;
     }
 
