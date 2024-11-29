@@ -1,3 +1,5 @@
 MNIST/
 serialnet
+ompnet
+cudanet
 logs/
