@@ -2,6 +2,7 @@
 #include <vector>
 #include <algorithm>
 #include <random>
+#include <omp.h>
 #include "model.h"
 #include "layer.h"
 #include "functions.h"
@@ -48,6 +49,16 @@ Model<T>::~Model(){//should abide by Rule of Three ideally
 //forward function returns the softmax output of the model
 template <typename T>
 T* Model<T>::forward(T* input, int size){
+    /*
+    if (omp_get_thread_num() == 0){
+            layers.push_back(Layer<T>(512, 512, nullptr));
+        }
+        #pragma omp barrier
+
+        #pragma omp critical
+        std::cout<<omp_get_thread_num()<<": "<<layers.size()<<std::endl;
+    */
+
     if (size != num_inputs){
         throw std::runtime_error("Input Vector Dimension Incorrect For Model");
     }
@@ -207,31 +218,113 @@ void Model<T>::updateModelParams(float learning_rate){
 }
 
 template <typename T>
-void Model<T>::test(T** testImages, int imageLength, int count, int* labels){
+int Model<T>::test(T** testImages, int imageLength, int count, int* labels){
     int correct = 0;
-    for (int i = 0; i < count; ++i){
-        T* outputs = forward(testImages[i], imageLength);
-        //find index of maximum value
-        int max_index = 0;
-        T max_val = outputs[0];
-        T sum = max_val;
-        for (int j = 1; j < num_outputs; ++j){
-            sum += outputs[j];
-            if (outputs[j] > max_val){
-                max_index = j;
-                max_val = outputs[j];
+    //#pragma omp parallel firstprivate(layers) reduction(+: correct)
+    //{
+        /*   
+        if (omp_get_thread_num() == 0){
+            layers.push_back(Layer<T>(512, 512, nullptr));
+        }
+        #pragma omp barrier
+
+        #pragma omp critical
+        std::cout<<omp_get_thread_num()<<": "<<layers.size()<<std::endl;
+        */
+        //#pragma omp for
+        for (int i = 0; i < count; ++i){
+            T* outputs = forward(testImages[i], imageLength);
+            //find index of maximum value
+            int max_index = 0;
+            T max_val = outputs[0];
+            T sum = max_val;
+            for (int j = 1; j < num_outputs; ++j){
+                sum += outputs[j];
+                if (outputs[j] > max_val){
+                    max_index = j;
+                    max_val = outputs[j];
+                }
+            }
+            /*
+            if(sum != 1.0){
+                throw std::runtime_error("Testing: Softmax output sum not equal to 1");
+            }
+            */
+            if (max_index == labels[i]){
+                //correct++;
+                correct += 1;
             }
         }
-        /*
-        if(sum != 1.0){
-            throw std::runtime_error("Testing: Softmax output sum not equal to 1");
+    //}
+    //std::cout<<correct<<"/"<<count<<" correct"<<std::endl;
+    return correct;
+}
+
+template<typename T>
+void Model<T>::addGrad(const Model<T>& l1){
+    for (int i = 0; i < layers.size(); ++i){
+        for (int j = 0; j < layers[i].getNumInputs() * layers[i].getNumOutputs(); ++j){
+            //#pragma omp atomic
+            weightsGrad[i][j] += l1.weightsGrad[i][j];
         }
-        */
-        if (max_index == labels[i]){
-            correct++;
+        for (int j = 0; j < layers[i].getNumOutputs(); ++j){
+            //#pragma omp atomic
+            biasesGrad[i][j] += l1.biasesGrad[i][j];;
         }
     }
-    std::cout<<correct<<"/"<<count<<" correct"<<std::endl;
+}
+
+template <typename T>
+Model<T>::Model(const Model<T>& l1):layers(l1.layers){//copy constructor
+    num_inputs = l1.num_inputs;
+    num_outputs = l1.num_outputs;
+    weightsGrad = new T*[layers.size()];
+    biasesGrad = new T*[layers.size()];
+    for (int i = 0; i < layers.size(); ++i){
+        weightsGrad[i] = new T[layers[i].getNumInputs() * layers[i].getNumOutputs()];
+        biasesGrad[i] = new T[layers[i].getNumOutputs()];
+    }
+    //copy values into the arrays
+    for (int i = 0; i < layers.size(); ++i){
+        for (int j = 0; j < layers[i].getNumInputs() * layers[i].getNumOutputs(); ++j){
+            weightsGrad[i][j] = l1.weightsGrad[i][j];
+        }
+        for (int j = 0; j < layers[i].getNumOutputs(); ++j){
+            biasesGrad[i][j] = l1.biasesGrad[i][j];
+        }
+    }
+}
+
+template <typename T>
+Model<T>& Model<T>::operator=(const Model<T>& l1){//assignment operator overload
+    if (this != &l1){
+        for (int i = 0; i < layers.size(); ++i){
+            delete[] weightsGrad[i];
+            delete[] biasesGrad[i];
+        }
+        delete[] weightsGrad;
+        delete[] biasesGrad;
+
+        layers = l1.layers;//copy assignment of vector
+        num_inputs = l1.num_inputs;
+        num_outputs = l1.num_outputs;
+        weightsGrad = new T*[layers.size()];
+        biasesGrad = new T*[layers.size()];
+        for (int i = 0; i < layers.size(); ++i){
+            weightsGrad[i] = new T[layers[i].getNumInputs() * layers[i].getNumOutputs()];
+            biasesGrad[i] = new T[layers[i].getNumOutputs()];
+        }
+        //copy values into the arrays
+        for (int i = 0; i < layers.size(); ++i){
+            for (int j = 0; j < layers[i].getNumInputs() * layers[i].getNumOutputs(); ++j){
+                weightsGrad[i][j] = l1.weightsGrad[i][j];
+            }
+            for (int j = 0; j < layers[i].getNumOutputs(); ++j){
+                biasesGrad[i][j] = l1.biasesGrad[i][j];
+            }
+        }
+    }
+    return *this;
 }
 
 

@@ -2,6 +2,7 @@
 #define MODEL_H
 
 #include <vector>
+#include <omp.h>
 #include "layer.h"
 
 
@@ -16,15 +17,25 @@ template<typename T>
 class Model{
 public:
     Model(T* (*hiddenAct)(T*, T*, int), T* (*outputAct)(T*, T*, int));
+    Model(const Model<T>& l1);//copy constructor
+    Model& operator=(const Model<T>& other);//assignment operator overload
     ~Model();
 
     T* forward(T* input, int size);
 
     void train(T** trainImages, int imageLength, int count, int* labels, hyperparams p);
-    void test(T** testImages, int imageLength, int count, int* labels);
+    int test(T** testImages, int imageLength, int count, int* labels);
 
     //calculate derivatives of all layers for one input vector and corresponding label
     float backpropagate(T* image, int imageLength, int label);
+
+    void addGrad(const Model<T>& l1);
+
+    //before each batch, reset all gradients to 0.0
+    void zeroGrad();
+
+    //update all weight and bias parameters in all layers based on weightsGrad and biasesGrad
+    void updateModelParams(float learning_rate);
 
 private:
     int num_inputs;//input vector dimension to model
@@ -45,11 +56,6 @@ private:
     T** weightsGrad;
     T** biasesGrad;
 
-    //before each batch, reset all gradients to 0.0
-    void zeroGrad();
-
-    //update all weight and bias parameters in all layers based on weightsGrad and biasesGrad
-    void updateModelParams(float learning_rate);
 };
 
 #endif
