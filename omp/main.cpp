@@ -34,8 +34,10 @@ int main(int argc, char** argv){
     auto relu = ReLU<float>;
     auto softmax = Softmax<float>;
 
-    hyperparams p = {1, 64, 0.01};
+    hyperparams p = {1, 512, 0.001};
+    //hyperparams p = {1, 64, 0.01};
 
+    
     std::random_device rd;
     std::mt19937 gen(rd());
     std::vector<int> indices(num_train_images);
@@ -43,10 +45,12 @@ int main(int argc, char** argv){
         indices[i] = i;
     }
     int num_batches = (num_train_images - 1)/p.batch_size + 1;
+    
 
     Model<float> model = Model<float>(relu, softmax);
     //Model<float> master_model = Model<float>(model);//from copy constructor
 
+    
     //model.train(train_images, image_height*image_width, num_train_images, train_labels, p);
     for(int i = 0; i < 10; ++i){
         std::cout<<"---Epoch "<<i<<" ---"<<std::endl;
@@ -96,11 +100,11 @@ int main(int argc, char** argv){
                 model.addGrad(private_model);
                 #pragma omp barrier
 
-                #pragma omp single
-                {
+                //#pragma omp single
+                //{
                     model.updateModelParams(p.learn_rate);
                     model.zeroGrad();
-                }
+                //}
                 private_model = model;
             }
         }
@@ -115,7 +119,20 @@ int main(int argc, char** argv){
         std::cout<<"Epoch Train time: "<<std::chrono::duration_cast<std::chrono::milliseconds>(train_end - test_end).count()<<" ms"<<std::endl;
         */
     }
-
+    
+    /*
+    for(int i = 0; i < 10; ++i){
+        std::cout<<"---Epoch "<<i<<" ---"<<std::endl;
+        auto total_start = std::chrono::high_resolution_clock::now();
+        int correct = model.test(test_images, image_height*image_width, num_test_images, test_labels);
+        auto test_end = std::chrono::high_resolution_clock::now();
+        std::cout<<correct<<"/"<<num_test_images<<std::endl;
+        std::cout<<"Test time: "<<std::chrono::duration_cast<std::chrono::milliseconds>(test_end - total_start).count()<<" ms"<<std::endl;
+        model.train(train_images, image_height*image_width, num_train_images, train_labels, p);
+        auto train_end = std::chrono::high_resolution_clock::now();
+        std::cout<<"Epoch Train time: "<<std::chrono::duration_cast<std::chrono::milliseconds>(train_end - test_end).count()<<" ms"<<std::endl;
+    }
+    */
     auto total_start = std::chrono::high_resolution_clock::now();
     model.test(test_images, image_height*image_width, num_test_images, test_labels);
     auto test_end = std::chrono::high_resolution_clock::now();

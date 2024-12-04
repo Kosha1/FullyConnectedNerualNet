@@ -7,6 +7,7 @@
 
 template <typename T>
 void matrixVectorMult(int rows, int cols, T* mat, T* vec, T* outVec){
+    //#pragma omp for
     for (int i = 0; i < rows; ++i){
         T sum = 0.0;
         for (int j = 0; j < cols; ++j){
@@ -27,6 +28,7 @@ void vectorAdd(T* vec1, T* vec2, T* result, int size){
 //Adds vec1 and vec2 and stores result in vec1
 template <typename T>
 void vectorAddInPlace(T* vec1, T* vec2, int size){
+    //#pragma omp for
     for (int i = 0; i < size; ++i){
         vec1[i] = vec1[i] + vec2[i];
     }

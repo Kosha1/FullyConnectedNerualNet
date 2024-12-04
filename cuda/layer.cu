@@ -1,7 +1,8 @@
 #include <iostream>
-#include "layer.h"
-#include "util.h"
+#include "layer.cuh"
+#include "util.cuh"
 #include "functions.h"
+#include "error_check.cuh"
 
 template <typename T>
 Layer<T>::Layer(int inputs, int outputs, T* (*actfunc)(T*, T*, int)){
@@ -9,21 +10,32 @@ Layer<T>::Layer(int inputs, int outputs, T* (*actfunc)(T*, T*, int)){
     num_outputs = outputs;
     //weights is a num_outputs x num_inputs matrix
     weights = new T [num_inputs * num_outputs];
+    CUDA_CHECK(cudaMalloc(&d_weights, num_inputs*num_outputs*sizeof(T)));
 
     //bias vector has num_outputs elements
     bias = new T [num_outputs];
+    CUDA_CHECK(cudaMalloc(&d_bias, num_outputs*sizeof(T)));
 
     //initialize the stored output arrays
     preoutput = new T [num_outputs];
+    CUDA_CHECK(cudaMalloc(&d_preoutput, num_outputs*sizeof(T)));
     output = new T [num_outputs];
+    CUDA_CHECK(cudaMalloc(&d_output, num_outputs*sizeof(T)));
 
     //init biases and weights
     initRandParams();
+    updateGPUParams();
 
     //printVector(bias, num_outputs);
 
     //store the activation function pointer
     activation = actfunc;
+}
+
+template <typename T>
+void Layer<T>::updateGPUParams(){
+    CUDA_CHECK(cudaMemcpy(d_weights, weights, num_inputs * num_outputs* sizeof(T), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_bias, bias, num_outputs* sizeof(T), cudaMemcpyHostToDevice));
 }
 
 template <typename T>
@@ -51,6 +63,21 @@ T* Layer<T>::forward(T* input, int size){
     //printVector(output, num_outputs);
 
     return output;
+}
+
+template <typename T>
+void Layer<T>::gpuForward(T* d_inputs, T* d_outputs, int batch_size, int* d_labels, int* m_correct, bool last){
+    if (!last){
+        dim3 DimBlock(128, 1, 1);
+        dim3 DimGrid(std::ceil((double)num_outputs / DimBlock.x), batch_size);
+        ReluLayer<<<DimGrid, DimBlock>>>(d_weights, d_bias, num_inputs, num_outputs, d_inputs, d_outputs);
+    }
+    else{
+        dim3 DimBlock(128, 1, 1);
+        dim3 DimGrid(std::ceil((double)num_outputs / DimBlock.x), batch_size);
+        PreActLayer<<<DimGrid, DimBlock>>>(d_weights, d_bias, num_inputs, num_outputs, d_inputs, d_outputs);
+        SoftmaxLabels<<<1, batch_size>>>(d_outputs, d_labels, m_correct);
+    }
 }
 
 template <typename T>
@@ -154,6 +181,9 @@ Layer<T>::Layer(const Layer<T>& l1){//copy constructor
     preoutput = new T[num_outputs];
     output = new T[num_outputs];
 
+    d_bias = l1.d_bias;
+    d_weights = l1.d_weights;
+
     //copy weights from l1 in this
     for (int i = 0; i < num_outputs; ++i){
         bias[i] = l1.bias[i];
@@ -176,6 +206,9 @@ Layer<T>& Layer<T>::operator=(const Layer<T>& l1){
         num_outputs = l1.num_outputs;
         weights = new T [num_inputs * num_outputs];
 
+        d_bias = l1.d_bias;
+        d_weights = l1.d_weights;
+
         bias = new T [num_outputs];
         preoutput = new T[num_outputs];
         output = new T[num_outputs];
@@ -197,6 +230,14 @@ Layer<T>& Layer<T>::operator=(const Layer<T>& l1){
 
 template <typename T>
 Layer<T>::~Layer(){
+    /*
+    CUDA_CHECK(cudaFree(d_bias));
+    CUDA_CHECK(cudaFree(d_weights));
+    CUDA_CHECK(cudaFree(d_preoutput));
+    CUDA_CHECK(cudaFree(d_output));
+    */
+    
+
     delete [] weights;
     delete [] bias;
     delete [] preoutput;

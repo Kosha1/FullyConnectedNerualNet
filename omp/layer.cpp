@@ -39,17 +39,19 @@ T* Layer<T>::forward(T* input, int size){
         throw std::runtime_error("Layer Input Vector Dimension Wrong");
     }
 
+    //#pragma omp parallel
+    //{
     //Preactivation: Ax + b, store in preoutput
     matrixVectorMult(num_outputs, num_inputs, weights, input, preoutput);//Ax-->preoutput
     vectorAddInPlace(preoutput, bias, num_outputs);//preoutput + bias -->preoutput
     //std::cout<<"   Preact: ";
     //printVector(preoutput, num_outputs);
-
+    //}
     //apply activation function to preoutput vector, store in output
     activation(preoutput, output, num_outputs);
     //std::cout<<"   Postact: ";
     //printVector(output, num_outputs);
-
+    
     return output;
 }
 
@@ -63,6 +65,10 @@ T* Layer<T>::calcLayerError(T* prevError, T* prevWeights, int prevNumInputs, int
     // dL/dlayer = dh/df * dfprev/dh * dL/dprevLayer
     // dh/df is derivate of activation output with respect to preactivation output (ReLu in our case)
     T* activationDer = new T[num_outputs];
+    T* layerError = new T[num_outputs];
+    //#pragma omp parallel
+    //{
+    //#pragma omp for
     for (int i = 0; i < num_outputs; ++i){//ReLu derivative: 0 if preact < 0, 1 if preact is >= 0
         if (preoutput[i] < 0) activationDer[i] = 0.0;//!!!need preoutput for derivative of activation function!!!
         else activationDer[i] = 1.0;
@@ -70,7 +76,7 @@ T* Layer<T>::calcLayerError(T* prevError, T* prevWeights, int prevNumInputs, int
 
     // dfprev/dh = prevWeight transposed (prevWeights is a prevNumOutputs x prevNumInputs matrix)
     //store prevWeights transposed * prevError in layerError, then pointwise multiply it with activationDer
-    T* layerError = new T[num_outputs];
+    //#pragma omp for
     for (int i = 0; i < prevNumInputs; ++i){
         T sum = 0.0;
         for(int j = 0; j < prevNumOutputs; ++j){
@@ -80,9 +86,11 @@ T* Layer<T>::calcLayerError(T* prevError, T* prevWeights, int prevNumInputs, int
         layerError[i] = sum;
     }
     //pointwise mult layerError with activation Der
+    //#pragma omp for
     for(int i = 0; i < num_outputs; ++i){
         layerError[i] = layerError[i] * activationDer[i];
     }
+    //}
     delete[] activationDer;
 
     //printVector(layerError, num_outputs);
@@ -93,6 +101,7 @@ template <typename T>
 T* Layer<T>::calcLayerError(int label){//last layer error based on cross entropy loss
     // dL/dlastlayer = softmax output - one hot vector
     T* layerError = new T[num_outputs];
+    //#pragma omp parallel for
     for (int i = 0; i < num_outputs; ++i){
         layerError[i] = output[i];
     }
@@ -115,10 +124,12 @@ float Layer<T>::calcLoss(int label){
 template <typename T>
 void Layer<T>::updateLayerParams(T* weightGrad, T* biasGrad, float learning_rate){
     //update weight matrix
+    #pragma omp for
     for(int i = 0; i < num_inputs * num_outputs; ++i){
         weights[i] -= weightGrad[i] * learning_rate;
     }
     //update bias vector
+    #pragma omp for
     for(int i = 0; i < num_outputs; ++i){
         bias[i] -= biasGrad[i] * learning_rate;
     }

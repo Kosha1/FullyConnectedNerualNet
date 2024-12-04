@@ -171,6 +171,7 @@ float Model<T>::backpropagate(T* image, int imageLength, int label){
 template <typename T>
 void Model<T>::singleBiasGradUpdate(int depth, T* layerError, int biasLength){
     //Bias Gradient = LayerError
+    //#pragma omp parallel for
     for (int i = 0; i < biasLength; ++i){
         biasesGrad[depth][i] += layerError[i];
     }
@@ -186,24 +187,31 @@ void Model<T>::singleWeightsGradUpdate(int depth, T* layerError, T* layerInput, 
     }
     //Weights Gradient = LayerError (num_outputs x 1 matrix) * input vector transposed (1 x num_inputs matrix)
     T* singleWeightGrad = new T [layerLength * inputLength];//matrix dimension matches layer's weight matrix dimension
+    //#pragma omp parallel
+    //{
+    //#pragma omp for
     for (int i = 0; i < layerLength; ++i){
         for(int j = 0; j < inputLength; ++j){
             singleWeightGrad[i * inputLength + j] = layerError[i] * layerInput[j];
         }
     }
     //+= singleWeightGrad array into shared WeightsGrad
+    //#pragma omp for
     for (int i = 0; i < layerLength * inputLength; ++i){
         weightsGrad[depth][i] += singleWeightGrad[i];
     }
+    //}
     delete[] singleWeightGrad;
 }
 
 template <typename T>
 void Model<T>::zeroGrad(){
     for (int i = 0; i < layers.size(); ++i){
+        #pragma omp for
         for (int j = 0; j < layers[i].getNumInputs() * layers[i].getNumOutputs(); ++j){
             weightsGrad[i][j] = 0.0;
         }
+        #pragma omp for
         for (int j = 0; j < layers[i].getNumOutputs(); ++j){
             biasesGrad[i][j] = 0.0;
         }

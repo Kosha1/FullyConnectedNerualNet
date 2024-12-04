@@ -13,6 +13,7 @@ public:
     ~Layer();
 
     T* forward(T* input, int size);
+    void gpuForward(T* d_inputs, T* d_outputs, int batch_size, int* d_labels, int* m_correct, bool last = false);
 
     void printInfo();
     int getNumInputs(){return num_inputs;}
@@ -29,6 +30,8 @@ public:
 
     void updateLayerParams(T* weightGrad, T* biasGrad, float learning_rate);
 
+    void updateGPUParams();
+
 private:
     void initRandParams();//randomly initialize weights and biases, only called in constructor
 
@@ -36,10 +39,14 @@ private:
     int num_outputs;
     T* weights;//matrix of dims num_outputs x num_inputs (row major order)
     T* bias;
+    T* d_weights;
+    T* d_bias;
 
     //for backpropagation storing (need to store preactivation output and post activation output)
     T* preoutput;//before activation function
     T* output;//after activation function
+    T* d_preoutput;
+    T* d_output;
 
 
     //activation function pointer

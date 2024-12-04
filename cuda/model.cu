@@ -2,29 +2,36 @@
 #include <vector>
 #include <algorithm>
 #include <random>
-#include "model.h"
-#include "layer.h"
+#include "model.cuh"
+#include "layer.cuh"
 #include "functions.h"
-#include "util.h"
+#include "util.cuh"
+#include "error_check.cuh"
 
 template <typename T>
-Model<T>::Model(T* (*hiddenAct)(T*, T*, int), T* (*outputAct)(T*, T*, int)){
+Model<T>::Model(T* (*hiddenAct)(T*, T*, int), T* (*outputAct)(T*, T*, int), int batch_size){
     //num_inputs = 10;
     num_inputs = 784;
     num_outputs = 10;
+    infer_batch_size = batch_size;
 
     //Since Layer object have manual memory management and put into vectors, the c++ rule of 3 must be implemented
     //Layer class has explicit copy constructor and assignment operator implemented
     //push_back invokes copy constructor, if one is not explicitly defined then double free or segfaults will occur
-    /*
-    layers.push_back(Layer<T>(num_inputs, 10, hiddenAct));
-    layers.push_back(Layer<T>(10, 10, hiddenAct));
-    //layers.push_back(Layer<T>(10, num_outputs, hiddenAct));
-    layers.push_back(Layer<T>(10, num_outputs, outputAct));
-    */
     layers.push_back(Layer<T>(num_inputs, 512, hiddenAct));
     layers.push_back(Layer<T>(512, 512, hiddenAct));
     layers.push_back(Layer<T>(512, num_outputs, outputAct));
+
+    T* out1;
+    CUDA_CHECK(cudaMalloc(&out1, infer_batch_size * 512*sizeof(T)));
+    d_infer_outputs.push_back(out1);
+    T* out2;
+    CUDA_CHECK(cudaMalloc(&out2, infer_batch_size * 512*sizeof(T)));
+    d_infer_outputs.push_back(out2);
+    T* out3;
+    CUDA_CHECK(cudaMalloc(&out3, infer_batch_size * 10*sizeof(T)));
+    d_infer_outputs.push_back(out3);
+
 
     weightsGrad = new T*[layers.size()];
     biasesGrad = new T*[layers.size()];
@@ -43,6 +50,37 @@ Model<T>::~Model(){//should abide by Rule of Three ideally
     }
     delete[] weightsGrad;
     delete[] biasesGrad;
+
+    for (int i = 0; i < d_infer_outputs.size(); ++i){
+        CUDA_CHECK(cudaFree(d_infer_outputs[i]));
+    }
+}
+
+template<typename T>
+int Model<T>::gpuInference(T* d_images, int* labels, int count, int imageLength){
+    int* m_correct;
+    CUDA_CHECK(cudaMallocManaged(&m_correct, 4));
+    *m_correct = 0;
+
+    int num_iterations = std::ceil((double)count/infer_batch_size);
+    //std::cout<<"Num Iterations: "<<num_iterations<<std::endl;
+    for (int i = 0; i < num_iterations; ++i){
+        int batch_size = infer_batch_size;
+        if (i == num_iterations - 1) batch_size = count - infer_batch_size * (num_iterations - 1);
+
+        int offset = i*infer_batch_size;
+
+        layers[0].gpuForward(d_images + offset * imageLength, d_infer_outputs[0], batch_size, nullptr, m_correct);
+        layers[1].gpuForward(d_infer_outputs[0], d_infer_outputs[1], batch_size, nullptr, m_correct);
+        layers[2].gpuForward(d_infer_outputs[1], d_infer_outputs[2], batch_size, labels + offset, m_correct, true);
+
+    }
+        
+    CUDA_CHECK(cudaDeviceSynchronize());
+    int correct = *m_correct;
+    CUDA_CHECK(cudaFree(m_correct));
+    std::cout<<"Test"<<std::endl;
+    return correct;
 }
 
 //forward function returns the softmax output of the model
@@ -234,6 +272,67 @@ void Model<T>::test(T** testImages, int imageLength, int count, int* labels){
     std::cout<<correct<<"/"<<count<<" correct"<<std::endl;
 }
 
+template<typename T>
+void Model<T>::updateGPUParams(){
+    for (int i = 0; i < layers.size(); ++i){
+        layers[i].updateGPUParams();
+    }
+}
+
+template <typename T>
+Model<T>::Model(const Model<T>& l1):layers(l1.layers){//copy constructor
+    num_inputs = l1.num_inputs;
+    num_outputs = l1.num_outputs;
+    infer_batch_size = l1.infer_batch_size;
+    weightsGrad = new T*[layers.size()];
+    biasesGrad = new T*[layers.size()];
+    for (int i = 0; i < layers.size(); ++i){
+        weightsGrad[i] = new T[layers[i].getNumInputs() * layers[i].getNumOutputs()];
+        biasesGrad[i] = new T[layers[i].getNumOutputs()];
+    }
+    //copy values into the arrays
+    for (int i = 0; i < layers.size(); ++i){
+        for (int j = 0; j < layers[i].getNumInputs() * layers[i].getNumOutputs(); ++j){
+            weightsGrad[i][j] = l1.weightsGrad[i][j];
+        }
+        for (int j = 0; j < layers[i].getNumOutputs(); ++j){
+            biasesGrad[i][j] = l1.biasesGrad[i][j];
+        }
+    }
+}
+
+template <typename T>
+Model<T>& Model<T>::operator=(const Model<T>& l1){//assignment operator overload
+    if (this != &l1){
+        for (int i = 0; i < layers.size(); ++i){
+            delete[] weightsGrad[i];
+            delete[] biasesGrad[i];
+        }
+        delete[] weightsGrad;
+        delete[] biasesGrad;
+
+        layers = l1.layers;//copy assignment of vector
+        num_inputs = l1.num_inputs;
+        num_outputs = l1.num_outputs;
+        infer_batch_size = l1.infer_batch_size;
+        weightsGrad = new T*[layers.size()];
+        biasesGrad = new T*[layers.size()];
+        for (int i = 0; i < layers.size(); ++i){
+            weightsGrad[i] = new T[layers[i].getNumInputs() * layers[i].getNumOutputs()];
+            biasesGrad[i] = new T[layers[i].getNumOutputs()];
+        }
+        //copy values into the arrays
+        for (int i = 0; i < layers.size(); ++i){
+            for (int j = 0; j < layers[i].getNumInputs() * layers[i].getNumOutputs(); ++j){
+                weightsGrad[i][j] = l1.weightsGrad[i][j];
+            }
+            for (int j = 0; j < layers[i].getNumOutputs(); ++j){
+                biasesGrad[i][j] = l1.biasesGrad[i][j];
+            }
+        }
+    }
+    return *this;
+}
 
 
 template class Model<double>;

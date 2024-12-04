@@ -63,4 +63,52 @@ void HeInitialization(T* vec, int size, int num_inputs){
     }
 }
 
+template <typename T>
+__global__ void ReluLayer(T* d_weights, T* d_bias, int num_inputs, int num_outputs, T* d_input, T* d_output){
+
+    int image_num = blockIdx.y;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    //each thread works on one element in the output vector
+    if (tid < num_outputs){
+        T sum = 0;
+        for (int i = 0; i < num_inputs; ++i){//Matrix vector multiplication
+            sum += d_weights[tid*num_inputs + i] * d_input[num_inputs*image_num + i];
+        }
+        //ReLu: max(0.0, preoutput)
+        T output = fmaxf(0.0, sum + d_bias[tid]);//bias addition followed by ReLu
+
+        d_output[num_outputs*image_num + tid] = output;
+    }
+}
+
+template <typename T>
+__global__ void PreActLayer(T* d_weights, T* d_bias, int num_inputs, int num_outputs, T* d_input, T* d_output){
+    int image_num = blockIdx.y;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid < num_outputs){
+        T sum = 0;
+        for (int i = 0; i < num_inputs; ++i){//Matrix vector multiplication
+            sum += d_weights[tid*num_inputs + i] * d_input[num_inputs*image_num + i];
+        }
+        T output = sum + d_bias[tid];
+        d_output[num_outputs*image_num + tid] = output;
+    }
+}
+
+template <typename T>
+__global__ void SoftmaxLabels(T* d_inputs, int* labels, int* correct){
+    int tid = threadIdx.x;
+
+    T max = -INFINITY;
+    int max_index = 0;
+    int offset = 10 * tid;
+    for (int i = 0; i < 10; ++i){
+        if (d_inputs[offset+i] > max){
+            max = d_inputs[offset+i];
+            max_index = i;
+        }
+    }
+    if(labels[tid] == max_index) atomicAdd(correct, 1);
+}
+
 #endif

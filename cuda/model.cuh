@@ -2,7 +2,7 @@
 #define MODEL_H
 
 #include <vector>
-#include "layer.h"
+#include "layer.cuh"
 
 
 //Training HyperParameters struct
@@ -15,10 +15,15 @@ struct hyperparams{
 template<typename T>
 class Model{
 public:
-    Model(T* (*hiddenAct)(T*, T*, int), T* (*outputAct)(T*, T*, int));
+    Model(T* (*hiddenAct)(T*, T*, int), T* (*outputAct)(T*, T*, int), int batch_size);
+    Model(const Model<T>& l1);//copy constructor
+    Model& operator=(const Model<T>& other);//assignment operator overload
     ~Model();
 
+    int gpuInference(T* d_images, int* d_labels, int count, int imageLength);
     T* forward(T* input, int size);
+
+    void updateGPUParams();
 
     void train(T** trainImages, int imageLength, int count, int* labels, hyperparams p);
     void test(T** testImages, int imageLength, int count, int* labels);
@@ -30,6 +35,9 @@ private:
     int num_inputs;//input vector dimension to model
     int num_outputs;//final output vector dimension of model
     std::vector<Layer<T>> layers;
+
+    std::vector<T*> d_infer_outputs;
+    int infer_batch_size;
 
     //calculate derivatives of all layers for one input vector and corresponding label
     //void backpropagate(T* image, int imageLength, int label);
