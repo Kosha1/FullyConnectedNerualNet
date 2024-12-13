@@ -16,12 +16,6 @@ Model<T>::Model(T* (*hiddenAct)(T*, T*, int), T* (*outputAct)(T*, T*, int)){
     //Since Layer object have manual memory management and put into vectors, the c++ rule of 3 must be implemented
     //Layer class has explicit copy constructor and assignment operator implemented
     //push_back invokes copy constructor, if one is not explicitly defined then double free or segfaults will occur
-    /*
-    layers.push_back(Layer<T>(num_inputs, 10, hiddenAct));
-    layers.push_back(Layer<T>(10, 10, hiddenAct));
-    //layers.push_back(Layer<T>(10, num_outputs, hiddenAct));
-    layers.push_back(Layer<T>(10, num_outputs, outputAct));
-    */
     layers.push_back(Layer<T>(num_inputs, 512, hiddenAct));
     layers.push_back(Layer<T>(512, 512, hiddenAct));
     layers.push_back(Layer<T>(512, num_outputs, outputAct));
@@ -60,13 +54,6 @@ T* Model<T>::forward(T* input, int size){
         inputsize = layers[i].getNumOutputs();
     }
 
-    /*
-    T sum = 0;
-    for(int i = 0; i < inputsize; ++i){
-        sum += prevInput[i];
-    }
-    std::cout<<"Sum: "<<sum<<std::endl;
-    */
     return prevInput;
 }
 

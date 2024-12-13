@@ -10,7 +10,6 @@
 
 template <typename T>
 Model<T>::Model(T* (*hiddenAct)(T*, T*, int), T* (*outputAct)(T*, T*, int), int batch_size){
-    //num_inputs = 10;
     num_inputs = 784;
     num_outputs = 10;
     infer_batch_size = batch_size;
@@ -63,7 +62,6 @@ int Model<T>::gpuInference(T* d_images, int* labels, int count, int imageLength)
     *m_correct = 0;
 
     int num_iterations = std::ceil((double)count/infer_batch_size);
-    //std::cout<<"Num Iterations: "<<num_iterations<<std::endl;
     for (int i = 0; i < num_iterations; ++i){
         int batch_size = infer_batch_size;
         if (i == num_iterations - 1) batch_size = count - infer_batch_size * (num_iterations - 1);
@@ -98,13 +96,6 @@ T* Model<T>::forward(T* input, int size){
         inputsize = layers[i].getNumOutputs();
     }
 
-    /*
-    T sum = 0;
-    for(int i = 0; i < inputsize; ++i){
-        sum += prevInput[i];
-    }
-    std::cout<<"Sum: "<<sum<<std::endl;
-    */
     return prevInput;
 }
 
@@ -162,8 +153,6 @@ float Model<T>::backpropagate(T* image, int imageLength, int label){
     //ln(softmax) naively is numerically unstable; ln(0.000001) --> -infinity
     //ln(softmax) can be calculated in a stable way using the preactivations of the output layer
     float loss = layers[layers.size() - 1].calcLoss(label);
-
-    //std::cout<<"-----Backpropagation Layer Errors-----"<<std::endl;
     
     //Bias Gradient = LayerError
     //Weights Gradient = LayerError (num_outputs x 1 matrix) * input vector transposed (1 x num_inputs matrix)

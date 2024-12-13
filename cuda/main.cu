@@ -8,8 +8,12 @@
 #include "loadmnist.h"
 #include "error_check.cuh"
 
-int main(){
+int main(int argc, char** argv){
 
+    if (argc < 2){
+        std::cout << "Usage: " << argv[0] << " <GPU Inference Batch Size>" << std::endl;
+        return -1;
+    }
 
     const int num_train_images = 60000;
     const int num_test_images = 10000;
@@ -29,17 +33,7 @@ int main(){
     CUDA_CHECK(cudaMalloc(&d_test_labels, num_test_images*sizeof(int)));
     CUDA_CHECK(cudaMemcpy(d_test_labels, test_labels, num_test_images* sizeof(int), cudaMemcpyHostToDevice));
     //1 image is treated as a 1d array and there are 10000 testing images
-    /*
-    //cudaMallocPitch: allocates space for a row major 2d array but each row may have extra padding (makes for more efficient mem access)
-    size_t pitch;//pitch stores the width in bytes for the row allocation
-    float* d_test_images;
-    CUDA_CHECK(cudaMallocPitch(&d_test_images, &pitch, image_width*image_height*sizeof(float), num_test_images));
-    for(int i = 0; i < num_test_images; ++i){
-        float* d_row_start = (float*)((char*)d_test_images + i * pitch);
-        CUDA_CHECK(cudaMemcpy(d_row_start,
-                                test_images[i], image_height*image_width* sizeof(float), cudaMemcpyHostToDevice));
-    }
-    */
+ 
     float* d_test_images;
     CUDA_CHECK(cudaMalloc(&d_test_images, num_test_images*image_height*image_width*sizeof(float)));
     for (int i = 0; i < num_test_images; ++i){
@@ -54,7 +48,9 @@ int main(){
 
     hyperparams p = {1, 32, 0.01};
 
-    Model<float> model = Model<float>(relu, softmax, 512);
+    int infer_batch_size = atoi(argv[1]);
+    std::cout<<"GPU Inference Batch Size: "<<infer_batch_size<<std::endl;
+    Model<float> model = Model<float>(relu, softmax, infer_batch_size);
 
     for(int i = 0; i < 10; ++i){
         std::cout<<"---Epoch "<<i<<" ---"<<std::endl;

@@ -11,8 +11,8 @@
 #include "loadmnist.h"
 
 int main(int argc, char** argv){
-    if (argc < 2){
-        std::cout << "Usage: " << argv[0] << " <numthreads>" << std::endl;
+    if (argc < 4){
+        std::cout << "Usage: " << argv[0] << " <numthreads> <SGD batch_size> <learning rate>" << std::endl;
         return -1;
     }
 
@@ -34,7 +34,12 @@ int main(int argc, char** argv){
     auto relu = ReLU<float>;
     auto softmax = Softmax<float>;
 
-    hyperparams p = {1, 512, 0.001};
+    int batch_size = atoi(argv[2]);
+    std::cout<<"SGD Batch Size "<<batch_size<<std::endl;
+    float learn_rate = atof(argv[3]);
+    std::cout<<"Learning rate "<<learn_rate<<std::endl;
+    hyperparams p = {1, batch_size, learn_rate};
+    //hyperparams p = {1, 512, 0.001};
     //hyperparams p = {1, 64, 0.01};
 
     

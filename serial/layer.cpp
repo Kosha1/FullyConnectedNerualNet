@@ -20,8 +20,6 @@ Layer<T>::Layer(int inputs, int outputs, T* (*actfunc)(T*, T*, int)){
     //init biases and weights
     initRandParams();
 
-    //printVector(bias, num_outputs);
-
     //store the activation function pointer
     activation = actfunc;
 }
@@ -42,13 +40,9 @@ T* Layer<T>::forward(T* input, int size){
     //Preactivation: Ax + b, store in preoutput
     matrixVectorMult(num_outputs, num_inputs, weights, input, preoutput);//Ax-->preoutput
     vectorAddInPlace(preoutput, bias, num_outputs);//preoutput + bias -->preoutput
-    //std::cout<<"   Preact: ";
-    //printVector(preoutput, num_outputs);
 
     //apply activation function to preoutput vector, store in output
     activation(preoutput, output, num_outputs);
-    //std::cout<<"   Postact: ";
-    //printVector(output, num_outputs);
 
     return output;
 }
@@ -85,7 +79,6 @@ T* Layer<T>::calcLayerError(T* prevError, T* prevWeights, int prevNumInputs, int
     }
     delete[] activationDer;
 
-    //printVector(layerError, num_outputs);
     return layerError;
 }
 
@@ -98,7 +91,6 @@ T* Layer<T>::calcLayerError(int label){//last layer error based on cross entropy
     }
     layerError[label] = layerError[label] - 1.0;//subtraction of one hot vector from softmax
 
-    //printVector(layerError, num_outputs);
 
     return layerError;
 }

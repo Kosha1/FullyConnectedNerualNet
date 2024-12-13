@@ -35,24 +35,9 @@ int main(){
     std::cout<<"Label: "<<test_labels[index]<<std::endl;
     */
 
-    //double* arr = new double[10];
-    float* arr = new float[10];
-    const int arrsize = 10;
-    initRandVector(arr, arrsize);
-    //printVector(arr, arrsize);
     
-    //auto relu = ReLU<double>;
-    //auto softmax = Softmax<double>;
     auto relu = ReLU<float>;
     auto softmax = Softmax<float>;
-    //Layer h1 = Layer<float>(10, 10, relu);
-
-
-    //h1.forward(arr);
-    //float* arr1 = h1.forward(arr);
-    //delete [] arr1;
-    //h1.printInfo();
-    //h1.forward();
 
 
     //hyperparams p = {10, 32, 0.001};
@@ -60,10 +45,7 @@ int main(){
 
     //Model<double> model = Model<double>(relu, softmax);
     Model<float> model = Model<float>(relu, softmax);
-    //model.forward(arr, arrsize);
-    //model.backpropagate(arr, arrsize, 3);
 
-    //model.train(train_images, image_height*image_width, num_train_images, train_labels, p);
     for(int i = 0; i < 10; ++i){
         std::cout<<"---Epoch "<<i<<" ---"<<std::endl;
         auto total_start = std::chrono::high_resolution_clock::now();
@@ -79,8 +61,6 @@ int main(){
     model.test(test_images, image_height*image_width, num_test_images, test_labels);
     auto test_end = std::chrono::high_resolution_clock::now();
     std::cout<<"Test time: "<<std::chrono::duration_cast<std::chrono::milliseconds>(test_end - total_start).count()<<" ms"<<std::endl;
-
-    delete[] arr;
 
 
     //delete test and train images
