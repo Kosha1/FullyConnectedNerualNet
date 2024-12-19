@@ -32,3 +32,26 @@ Running the programs:
     - Working combination: bs=32 and lr=0.01. If batch size is increased, decrease the learning rate by the same amount.
 - CUDA: `./cudanet <GPU Inference Batch Size>`
 
+### Results
+**Serial Network**
+
+![Serial Testing Accuracy](/experiments/SerialAccuracy.png)
+
+**OpenMP Network**
+
+![OpenMP Inference Time](/experiments/OpenMPInferenceTime.png)
+![OpenMP Inference Speedup](/experiments/OpenMPInferenceSpeedup.png)
+![OpenMP Epoch Time](/experiments/OpenMPEpochTime.png)
+![OpenMP Epoch Speedup](/experiments/OpenMPEpochSpeedup.png)
+
+**CUDA Network**
+
+|Inference Type|Time (ms)|Speedup|
+| --- | --- | --- |
+|Serial| 6623|1|
+|CUDA, 128 Batch size|268|24.71|
+|CUDA, 256 Batch size|269|24.62|
+|CUDA, 512 Batch size|257|25.77|
+|CUDA, 1024 Batch size|260|25.47|
+
+
