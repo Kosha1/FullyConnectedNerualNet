@@ -35,14 +35,14 @@ Running the programs:
 ### Results
 **Serial Network**
 
-![Serial Testing Accuracy](/experiments/SerialAccuracy.png)
+![Serial Testing Accuracy](/experiments/SerialAccuracy.svg)
 
 **OpenMP Network**
 
-![OpenMP Inference Time](/experiments/OpenMPInferenceTime.png)
-![OpenMP Inference Speedup](/experiments/OpenMPInferenceSpeedup.png)
-![OpenMP Epoch Time](/experiments/OpenMPEpochTime.png)
-![OpenMP Epoch Speedup](/experiments/OpenMPEpochSpeedup.png)
+![OpenMP Inference Time](/experiments/OpenMPInferenceTime.svg)
+![OpenMP Inference Speedup](/experiments/OpenMPInferenceSpeedup.svg)
+![OpenMP Epoch Time](/experiments/OpenMPEpochTime.svg)
+![OpenMP Epoch Speedup](/experiments/OpenMPEpochSpeedup.svg)
 
 **CUDA Network**
 
